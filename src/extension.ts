@@ -126,4 +126,27 @@ async function toggleMultilineComments() {
     await foldOrUnfoldMultilineComments(newFoldState);
 }
 
+vscode.languages.registerFoldingRangeProvider('python', {
+    provideFoldingRanges(document, context, token) {
+        let multilineFoldingRanges = [];
+
+        let firstCommentLineNr = -1;
+        for (let lineNr = 0; lineNr < document.lineCount; lineNr++) {
+            const line = document.lineAt(lineNr);
+            if (line.text.trim().startsWith('#')) {
+                if (firstCommentLineNr === -1) {
+                    firstCommentLineNr = lineNr;
+                }
+            } else if (firstCommentLineNr != -1) {
+                if (lineNr - firstCommentLineNr > 1) {
+                    multilineFoldingRanges.push(new vscode.FoldingRange(firstCommentLineNr, lineNr-1, vscode.FoldingRangeKind.Region));
+                }
+                firstCommentLineNr = -1;
+            }
+        }
+        return multilineFoldingRanges;
+    }
+});
+
+
 export function deactivate() { }
