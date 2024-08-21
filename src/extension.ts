@@ -69,6 +69,26 @@ async function getMultilineCommentRanges(document: vscode.TextDocument): Promise
         multilineCommentRanges.push(range);
     }
 
+    let firstCommentLineNr = -1;
+    for (let lineNr = 0; lineNr < document.lineCount; lineNr++) {
+        const line = document.lineAt(lineNr);
+        if (line.text.trim().startsWith('#')) {
+            if (firstCommentLineNr === -1) {
+                firstCommentLineNr = lineNr;
+            }
+        } else if (firstCommentLineNr != -1) {
+            const lineText = line.text;
+            const startPos = new vscode.Position(firstCommentLineNr, 0);
+            const endPos = new vscode.Position(lineNr-1, lineText.length);    // This line is the first without a comment, so it shouldn't be folded
+            if (lineNr - firstCommentLineNr > 1) {
+                const range = new vscode.Range(startPos, endPos);
+                multilineCommentRanges.push(range);
+            }
+            firstCommentLineNr = -1;
+        }
+
+    }
+
     return multilineCommentRanges;
 }
 
