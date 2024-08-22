@@ -110,6 +110,7 @@ async function foldOrUnfoldMultilineComments(fold: boolean, editor?: vscode.Text
         return;
     }
 
+    const savedSelection = editor.selection;
     const savedSelections = editor.selections;
     const savedViewState = editor.visibleRanges;
 
@@ -122,6 +123,7 @@ async function foldOrUnfoldMultilineComments(fold: boolean, editor?: vscode.Text
     }
 
     editor.selections = savedSelections;
+    editor.selection = savedSelection;
 
     if (savedViewState.length > 0) {
         editor.revealRange(savedViewState[0], vscode.TextEditorRevealType.AtTop);
