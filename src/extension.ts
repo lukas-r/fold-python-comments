@@ -152,6 +152,17 @@ vscode.languages.registerFoldingRangeProvider('python', {
     provideFoldingRanges(document, context, token) {
         let multilineFoldingRanges = [];
 
+        // This is getting executed every keystroke, so don't redefine folding ranges unless we've just created a # comment
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return [];
+        }
+        const cursorPosition = editor.selection.active;
+        const lineText = editor.document.lineAt(cursorPosition.line).text;
+        if (!lineText.trim().startsWith('#')) {
+            return [];
+        }
+
         let firstCommentLineNr = -1;
         for (let lineNr = 0; lineNr < document.lineCount; lineNr++) {
             const line = document.lineAt(lineNr);
