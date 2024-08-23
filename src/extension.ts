@@ -17,6 +17,10 @@ export function activate(context: vscode.ExtensionContext) {
         await toggleMultilineComments();
     });
 
+    context.subscriptions.push(foldCommand);
+    context.subscriptions.push(unfoldCommand);
+    context.subscriptions.push(toggleCommand);
+
     vscode.languages.registerFoldingRangeProvider('python', {
         provideFoldingRanges(document, context, token) {
             let multilineFoldingRanges = [];
@@ -52,11 +56,6 @@ export function activate(context: vscode.ExtensionContext) {
             return multilineFoldingRanges;
         }
     });
-    
-
-    context.subscriptions.push(foldCommand);
-    context.subscriptions.push(unfoldCommand);
-    context.subscriptions.push(toggleCommand);
 
     // Listen for Python files being opened
     vscode.workspace.onDidOpenTextDocument(document => {
@@ -131,7 +130,6 @@ async function getMultilineCommentRanges(document: vscode.TextDocument): Promise
             }
             firstCommentLineNr = -1;
         }
-
     }
 
     return multilineCommentRanges;
