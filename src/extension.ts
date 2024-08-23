@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 let foldedState: { [key: string]: boolean } = {};
 let documentsToProcess: Set<string> = new Set();
+const initialFoldingRangesForDoc = new WeakMap<vscode.TextDocument, boolean>();
 
 export function activate(context: vscode.ExtensionContext) {
     const foldCommand = vscode.commands.registerCommand('extension.foldPythonMultilineComments', async () => {
@@ -15,6 +16,43 @@ export function activate(context: vscode.ExtensionContext) {
     const toggleCommand = vscode.commands.registerCommand('extension.togglePythonMultilineComments', async () => {
         await toggleMultilineComments();
     });
+
+    vscode.languages.registerFoldingRangeProvider('python', {
+        provideFoldingRanges(document, context, token) {
+            let multilineFoldingRanges = [];
+    
+            // This is getting executed every keystroke, so don't redefine folding ranges unless we've just created a # comment
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return [];
+            }
+            const cursorPosition = editor.selection.active;
+            const lineText = editor.document.lineAt(cursorPosition.line).text;
+            if (!lineText.trim().startsWith('#') && initialFoldingRangesForDoc.get(document)) {
+                return [];
+            }
+    
+            initialFoldingRangesForDoc.set(document, true);
+    
+            let firstCommentLineNr = -1;
+            for (let lineNr = 0; lineNr < document.lineCount; lineNr++) {
+                const line = document.lineAt(lineNr);
+                if (line.text.trim().startsWith('#')) {
+                    if (firstCommentLineNr === -1) {
+                        firstCommentLineNr = lineNr;
+                    }
+                } else if (firstCommentLineNr != -1) {
+                    if (lineNr - firstCommentLineNr > 1) {
+                        multilineFoldingRanges.push(new vscode.FoldingRange(firstCommentLineNr, lineNr-1, vscode.FoldingRangeKind.Region));
+                        console.log("Folding range: " + firstCommentLineNr + " to " + (lineNr-1));
+                    }
+                    firstCommentLineNr = -1;
+                }
+            }
+            return multilineFoldingRanges;
+        }
+    });
+    
 
     context.subscriptions.push(foldCommand);
     context.subscriptions.push(unfoldCommand);
@@ -43,6 +81,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
         });
     });
+
+    vscode.workspace.onDidCloseTextDocument(handleDocumentClosed); // Listen to document close event
+
 }
 
 async function handleDocumentOpen(document: vscode.TextDocument) {
@@ -53,6 +94,10 @@ async function handleDocumentOpen(document: vscode.TextDocument) {
     } else {
         documentsToProcess.add(document.uri.toString());
     }
+}
+
+async function handleDocumentClosed(document: vscode.TextDocument) {
+    initialFoldingRangesForDoc.delete(document);
 }
 
 async function getMultilineCommentRanges(document: vscode.TextDocument): Promise<vscode.Range[]> {
@@ -147,39 +192,6 @@ async function toggleMultilineComments() {
 
     await foldOrUnfoldMultilineComments(newFoldState);
 }
-
-vscode.languages.registerFoldingRangeProvider('python', {
-    provideFoldingRanges(document, context, token) {
-        let multilineFoldingRanges = [];
-
-        // This is getting executed every keystroke, so don't redefine folding ranges unless we've just created a # comment
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return [];
-        }
-        const cursorPosition = editor.selection.active;
-        const lineText = editor.document.lineAt(cursorPosition.line).text;
-        if (!lineText.trim().startsWith('#')) {
-            return [];
-        }
-
-        let firstCommentLineNr = -1;
-        for (let lineNr = 0; lineNr < document.lineCount; lineNr++) {
-            const line = document.lineAt(lineNr);
-            if (line.text.trim().startsWith('#')) {
-                if (firstCommentLineNr === -1) {
-                    firstCommentLineNr = lineNr;
-                }
-            } else if (firstCommentLineNr != -1) {
-                if (lineNr - firstCommentLineNr > 1) {
-                    multilineFoldingRanges.push(new vscode.FoldingRange(firstCommentLineNr, lineNr-1, vscode.FoldingRangeKind.Region));
-                }
-                firstCommentLineNr = -1;
-            }
-        }
-        return multilineFoldingRanges;
-    }
-});
 
 
 export function deactivate() { }
